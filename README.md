@@ -1,6 +1,6 @@
 This is an attempted port of `pi` to F#, using Fable's TypeScript backend as a **round-trip verification target** rather than a runtime replacement. 
 
-## The Core Strategy
+## The core strategy
 
 Fable has an official TypeScript emit backend (`fable-ts`) that compiles F# → TypeScript instead of JavaScript. The idea is:
 
@@ -91,7 +91,7 @@ let Bun: obj = jsNative
 
 ***
 
-## Structural Port Strategy
+## Structural port strategy
 
 Given Pi's module layout, here's how to map the F# file structure to produce clean round-trip TypeScript:
 
@@ -134,7 +134,7 @@ The `[<CompiledName>]` attribute is critical — it ensures Fable emits the exac
 
 ***
 
-## Mutable Class State
+## Mutable class state
 
 `AgentSessionRuntime` has private mutable fields that get swapped during session transitions. In F# you have two clean options:
 
@@ -164,7 +164,7 @@ Stick with Option A for the round-trip phase. Once the tests pass and correctnes
 
 ***
 
-## Test Wiring
+## Test wiring
 
 Pi already has a Vitest config in `packages/coding-agent/vitest.config.ts`. The round-trip test workflow:
 
@@ -191,7 +191,7 @@ You can wire this into a single `npm` script:
 
 ***
 
-## Practical Iteration Order
+## Practical iteration order
 
 Start from the **leaves** (no dependencies) and work inward:
 
@@ -204,45 +204,7 @@ Start from the **leaves** (no dependencies) and work inward:
 
 The main practical risk is Fable's TypeScript emit sometimes generating slightly different identifier casing or import styles than Pi's original. Using `[<CompiledName>]` attributes consistently on public API members prevents most of those mismatches. For module-level `export` compatibility, Fable's `[<ExportDefault>]` and `[<Export>]` attributes give you fine control over what the emitted `.ts` exports.
 
-# Detailed description of cyclic workflow for AI systems
-
-Now I have comprehensive source material. This is actually `oh-my-pi` (a fork by `can1357`), and I can see from the author's own blog post that the test situation is clear. Let me render the full review now.
-
-***
-
-## Test Coverage — Confirmed Finding
-
-From the author's own blog post, the test picture is highly asymmetric: [mariozechner](https://mariozechner.at/posts/2025-11-30-pi-coding-agent/)
-
-> **`pi-ai` has a pretty extensive test suite** covering image inputs, reasoning traces, tool calling, streaming, and multi-provider behavior — running across all supported providers and models.
-
-> **`pi-coding-agent`** — no mention of tests anywhere in the blog post, the README, or the repository structure.
-
-This is a meaningful split. The `packages/ai` LLM abstraction layer is well-tested. The `packages/coding-agent` core — which is the primary porting target — almost certainly has **minimal to no unit test coverage**. This is consistent with how coding agent harnesses are typically built: they are integration-tested by *using them*, not by unit tests. The only third-party test reference found  is for a community extension (`pi-rules`), not for the core. [github](https://github.com/code-yeongyu/pi-rules)
-
-**Consequence for the project:** The round-trip Vitest verification strategy was already identified as a risk. This confirms it: for the `coding-agent` package, you cannot rely on existing tests as a correctness oracle because there are very few to rely on. The `pi-ai` package is the exception — its tests are substantial and could anchor verification of the LLM API layer port.
-
-***
-
-## AI-Driven Porting vs Transpiler — Assessment
-
-Replacing a mechanical transpiler approach with **AI-driven semantic porting** is the right call, for concrete reasons:
-
-**Why a transpiler fails here specifically:**
-
-Pi is not a mechanical codebase. The author describes deliberate design decisions throughout — the session branching model, structured tool split results, progressive JSON parsing during streaming, cross-provider context handoff — none of these map to syntactic rules. A transpiler encodes *syntax patterns*. Pi's complexity lives in *semantic intent*. An AI that reads the author's design rationale and the code together will produce better F# than any rule set. [mariozechner](https://mariozechner.at/posts/2025-11-30-pi-coding-agent/)
-
-**What AI-driven porting looks like in practice:**
-
-The AI reads each module with its full context — the TypeScript source, the author's documented design intent, the type graph from Serena — and writes idiomatic F# that expresses the same semantics. Comby's role shifts from "execution tool" to "pre-analysis tool": it catalogues recurring TypeScript patterns before the AI port begins, giving the AI a structured map of what it will encounter rather than driving the transformation itself.
-
-This also means the verification strategy must change. Without dense test coverage in `coding-agent`, the round-trip Vitest approach needs to be supplemented.
-
-***
-
-## Revised Cycle Roadmap
-
-### Cycle 0 — Foundation and Fable Spike
+# Detailed description of the cyclic workflow for AI systems
 
 **AI task:**
 - Scaffold `pi-core.fsproj`, Fable TS backend build, `justfile`
